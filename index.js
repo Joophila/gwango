@@ -13,7 +13,7 @@ const redirect_uri = process.env.REDIRECT_URI;
 const makeWebhook = process.env.MAKE_WEBHOOK_URL;
 
 app.get("/auth/google", (req, res) => {
-  const authUrl = \`https://accounts.google.com/o/oauth2/v2/auth?client_id=\${client_id}&redirect_uri=\${redirect_uri}&response_type=code&scope=https://www.googleapis.com/auth/adwords&access_type=offline&prompt=consent\`;
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=code&scope=https://www.googleapis.com/auth/adwords&access_type=offline&prompt=consent\`;
   res.redirect(authUrl);
 });
 
