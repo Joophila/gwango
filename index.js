@@ -29,6 +29,11 @@ app.get('/oauth2callback', async (req, res) => {
       redirect_uri,
       grant_type: 'authorization_code'
     });
+    console.log("✅ Token Response:", JSON.stringify(data, null, 2));
+    if (!data.access_token) {
+  console.error("❌ access_token 없음! 전체 응답 데이터:", JSON.stringify(data, null, 2));
+  return res.status(500).send("OAuth 실패: 토큰 발급 불가");
+}
 
     const access_token = data.access_token;
     const refresh_token = data.refresh_token;
