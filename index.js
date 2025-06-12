@@ -1,47 +1,65 @@
 const express = require('express');
 const axios = require('axios');
-const dotenv = require('dotenv');
-dotenv.config();
+const path = require('path');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const client_id = process.env.CLIENT_ID;
+const client_secret = process.env.CLIENT_SECRET;
+const redirect_uri = process.env.REDIRECT_URI;
+const make_webhook = process.env.MAKE_WEBHOOK;
 
+// 🔹 HTML 파일 서빙
+app.use(express.static(path.join(__dirname, 'public')));
+
+// 🔹 Google 인증 시작
 app.get('/auth/google', (req, res) => {
-  const client_id = process.env.CLIENT_ID;
-  const redirect_uri = process.env.REDIRECT_URI;
-
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=code&scope=https://www.googleapis.com/auth/adwords&access_type=offline&prompt=consent`;
   res.redirect(authUrl);
 });
 
+// 🔹 콜백 처리
 app.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
-
   try {
-    const response = await axios.post('https://oauth2.googleapis.com/token', {
+    const { data } = await axios.post('https://oauth2.googleapis.com/token', {
       code,
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: process.env.REDIRECT_URI,
+      client_id,
+      client_secret,
+      redirect_uri,
       grant_type: 'authorization_code'
     });
 
-    const { access_token, refresh_token } = response.data;
+    const access_token = data.access_token;
+    const refresh_token = data.refresh_token;
 
-    // ✅ Make webhook으로 데이터 전송
-    await axios.post(process.env.MAKE_WEBHOOK, {
-      access_token,
+    const userinfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    const email = userinfo.data.email;
+
+    const customerRes = await axios.get('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    const customer_id = customerRes.data.resourceNames[0].split('/')[1];
+
+    await axios.post(make_webhook, {
+      customer_id,
+      email,
+      roas_min: 2.0,
+      roas_max: 4.0,
+      budget_multiplier: 1.2,
       refresh_token
     });
 
-    res.send('✅ 인증 성공! 이제 광고 최적화가 시작됩니다.');
+    res.send('✅ 연동이 완료되었습니다.');
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).send('❌ 인증 실패. 콘솔을 확인해주세요.');
+    console.error(err);
+    res.status(500).send('❌ 연동 중 오류 발생.');
   }
 });
 
-// ❗ 이게 빠지면 무조건 "Unexpected end of input" 에러 남
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
