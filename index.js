@@ -55,10 +55,15 @@ app.get('/oauth2callback', async (req, res) => {
     });
 
     res.send('✅ 연동이 완료되었습니다.');
-  } catch (err) {
-    console.error(err);
+    } catch (err) {
+    if (err.response) {
+      console.error("OAuth Token Error:", err.response.data);
+    } else {
+      console.error("Unknown Error:", err.message);
+    }
     res.status(500).send('❌ 연동 중 오류 발생.');
   }
+
 });
 
 const PORT = process.env.PORT || 3000;
